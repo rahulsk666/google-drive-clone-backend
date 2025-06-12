@@ -30,10 +30,8 @@ WORKDIR /var/www/html
 COPY . .
 
 # Set permissions
-RUN chmod -R 777 storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache
-
-# Install dependencies (remove --no-dev for development)
-RUN composer install --no-interaction --optimize-autoloader
+RUN chmod -R 777 storage bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache
 
 # Expose port 9000 (PHP-FPM)
 EXPOSE 9000
@@ -41,7 +39,3 @@ EXPOSE 9000
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["sh", "/usr/local/bin/docker-entrypoint.sh"]
-
-
-# Start PHP-FPM
-# CMD ["php-fpm"]
