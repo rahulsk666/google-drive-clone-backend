@@ -1,0 +1,427 @@
+openapi: 3.0.3
+info:
+  title: Google Drive–like RESTful API
+  version: 1.0.0
+  description: API for file storage, sharing, and management.
+servers:
+  - url: http://localhost/api
+components:
+  securitySchemes:
+    OAuth2Password:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Folder:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        children:
+          type: object
+          properties:
+            files:
+              type: array
+              items:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/File"
+                example:
+                    id: 101
+                    name: "report.pdf"
+                    folder_id: 10
+                    size: 1048576
+                    is_deleted: false
+                    created_at: "2025-06-09T10:00:00Z"
+                    url: "https://example.com/storage/report.pdf"
+                    
+            folders:
+              type: array
+              items:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/Folder"
+                example:
+                    id: 10
+                    name: "Projects"
+                    parent_id: 1
+                    is_deleted: false
+                    created_at: "2025-06-09T08:00:00Z"
+
+    File:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        folder_id:
+          type: integer
+        size:
+          type: integer
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+    TrashItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [file, folder]
+        name:
+          type: string
+        deleted_at:
+          type: string
+          format: date-time
+security:
+  - OAuth2Password: []
+paths:
+  # === Authentication APIs ===
+  /auth/google:
+    get:
+      tags: [Authentication]
+      summary: Get Google OAuth redirect URL
+      description: Returns the URL to redirect the user to Google's OAuth consent screen.
+      responses:
+        "200":
+          description: Redirect URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+
+  /auth/google/callback:
+    get:
+      tags: [Authentication]
+      summary: Google OAuth callback
+      description: Handles the callback from Google OAuth and returns access tokens.
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+                  expires_in:
+                    type: integer
+
+  /auth/revoke:
+    post:
+      tags: [Authentication]
+      summary: Logout and revoke token
+      description: Revokes the user's access token and logs them out.
+      security:
+        - OAuth2Password: []
+      responses:
+        "200":
+          description: Logout successful
+
+  # === Users APIs ===
+  /users:
+    get:
+      tags: [Users]
+      summary: List users with optional search filter
+      description: Returns a list of users. Optionally filter users by search query (matches name or email).
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          required: false
+          description: Search term to filter users by name or email.
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    email:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+
+  # === Folder APIs ===
+  /folders:
+    post:
+      tags: [Folders]
+      summary: Create folder
+      security:
+        - OAuth2Password: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                parent_id:
+                  type: integer
+                  nullable: true
+      responses:
+        "201":
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  parent_id:
+                    type: integer
+                    nullable: true
+                  is_deleted:
+                    type: boolean
+                  created_at:
+                    type: string
+                    format: date-time
+                  children:
+                    type: object
+                    properties:
+                      files:
+                        type: array
+                      Folder:
+                        type: array
+
+  /folders/{id}:
+    get:
+      tags: [Folders]
+      summary: Get folder details (with children)
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Folder details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+    put:
+      tags: [Folders]
+      summary: Rename folder
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          description: Folder renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+    delete:
+      tags: [Folders]
+      summary: Soft-delete folder (move to trash)
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Folder soft-deleted
+
+  /folders/{id}/share:
+    post:
+      tags: [Folders]
+      summary: Share folder with another user
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Folder shared
+
+  # === File APIs ===
+  /files:
+    post:
+      tags: [Files]
+      summary: Upload file
+      security:
+        - OAuth2Password: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type:  string
+                  format: binary
+                folder_id:
+                  type: integer
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/File"
+
+  /files/{id}/download:
+    get:
+      tags: [Files]
+      summary: Download file
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /files/{id}:
+    delete:
+      tags: [Files]
+      summary: Soft-delete file
+      security:
+        - OAuth2Password: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: File soft-deleted
+
+  # === Trash APIs ===
+  /trash:
+    get:
+      tags: [Trash]
+      summary: List all trashed files/folders
+      security:
+        - OAuth2Password: []
+      responses:
+        "200":
+          description: List of trashed items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrashItem"
+
+  /trash/restore:
+    post:
+      tags: [Trash]
+      summary: Restore a trashed file or folder
+      description: Restore a file or folder from the trash by its ID and type.
+      security:
+        - OAuth2Password: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: The ID of the trashed item to restore.
+                  type:
+                    type: string
+                    enum: [file, folder]
+                    description: The type of the trashed item.
+      responses:
+        "200":
+          description: Item restored successfully
