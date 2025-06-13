@@ -44,7 +44,7 @@ components:
                     is_deleted: false
                     created_at: "2025-06-09T10:00:00Z"
                     url: "https://example.com/storage/report.pdf"
-                    
+
             folders:
               type: array
               items:
@@ -93,7 +93,7 @@ security:
   - OAuth2Password: []
 paths:
   # === Authentication APIs ===
-  /auth/google:
+  /login:
     get:
       tags: [Authentication]
       summary: Get Google OAuth redirect URL
@@ -106,7 +106,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  url:
+                  redirectUrl:
                     type: string
 
   /auth/google/callback:
@@ -137,7 +137,7 @@ paths:
                   expires_in:
                     type: integer
 
-  /auth/revoke:
+  /logout:
     post:
       tags: [Authentication]
       summary: Logout and revoke token

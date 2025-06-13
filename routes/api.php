@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/auth/google', [App\Http\Controllers\AuthController::class, 'login']);
+Route::get('/login', [App\Http\Controllers\AuthController::class, 'login']);
 
 Route::get('/auth/google/callback', [App\Http\Controllers\AuthController::class, 'handleGoogleCallback']);
 

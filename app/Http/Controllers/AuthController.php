@@ -8,43 +8,50 @@ use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    /**
+     * Redirect the user to the Google authentication page.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function login()
     {
         $redirectUrl = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
-        return response()->json(['redirect' => $redirectUrl]);
+        return response()->json(['redirectUrl' => $redirectUrl]);
     }
 
+    /**
+     * Handle the Google callback and create or retrieve the user.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function handleGoogleCallback()
     {
         $googleUser = Socialite::driver('google')
-            // ->with(['access_type' => 'offline', 'prompt' => 'consent'])
             ->stateless()
             ->user();
-        // dd($googleUser); // Debugging line to inspect the user object
-        $token = $googleUser->token;
         $user = User::firstOrCreate(
             ['email' => $googleUser->email],
             [
                 'name' => $googleUser->name,
-                'password' => \Hash::make(rand(100000, 999999))
             ]
         );
 
         $apiToken = $user->createToken('api-token')->plainTextToken;
 
-
-        // dd($user); // Debugging line to inspect the user object
         return response()->json([
             'message' => 'Login successful',
-            // 'user' => $user, // Adjust this to your desired redirect route
             'apiToken' => $apiToken,
-            // 'googleToken' => $token,
         ]);
     }
 
+    /**
+     * Logout the user and invalidate the token.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function logout(Request $request)
     {
-        // dd($request);
         $user = $request->user();
         if ($user) {
             $user->tokens()->delete();
@@ -53,6 +60,12 @@ class AuthController extends Controller
         return response()->json(['message' => 'No user logged in'], 401);
     }
 
+    /**
+     * Get the authenticated user.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getUser(Request $request)
     {
         $user = $request->user();
@@ -62,7 +75,11 @@ class AuthController extends Controller
         return response()->json(['message' => 'No user logged in'], 401);
     }
 
-    // get all users
+    /**
+     * Get all users.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getAllUsers()
     {
         $users = User::all();
